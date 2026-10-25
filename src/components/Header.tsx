@@ -9,7 +9,7 @@ export function Header({ lastUpdate, onRefresh, loading }: HeaderProps) {
     <header className="header">
       <div className="header-content">
         <div className="header-title">
-          <h1>🗳️ Urna ( Joey vai tomar no cú )</h1>
+          <h1>🗳️ Urna</h1>
           <span className="subtitle">Apuração em tempo real</span>
         </div>
         <div className="header-info">
