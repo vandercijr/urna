@@ -16,8 +16,8 @@ export function useElectionResults(
   const [lastUpdate, setLastUpdate] = useState<string>("");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [countdown, setCountdown] = useState(POLL_INTERVAL);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
-  const countdownRef = useRef<ReturnType<typeof setInterval>>();
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const countdownRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
   const load = useCallback(async () => {
     if (!electionCd || !cargoCd) return;
