@@ -1,12 +1,30 @@
-import type { ElectionConfig, ElectionResult } from "../types/tse";
+import type { ElectionConfig, ElectionResult, MunicipalityConfig } from "../types/tse";
 
 const BASE_URL = "https://resultados.tse.jus.br/oficial";
 const CYCLE = "ele2026";
 
-export async function fetchElectionConfig(): Promise<ElectionConfig> {
-  const res = await fetch(`${BASE_URL}/comum/config/ele-c.json`);
-  if (!res.ok) throw new Error(`Failed to fetch config: ${res.status}`);
-  return res.json();
+const cache = new Map<string, unknown>();
+
+async function fetchWithRetry(url: string, retries = 4): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url);
+    if (res.ok) return res;
+    if (res.status === 429 && attempt < retries) {
+      const delay = 2000 * 2 ** attempt;
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+    throw new Error(`${res.status}`);
+  }
+  throw new Error("Max retries");
+}
+
+async function cachedFetch<T>(url: string): Promise<T> {
+  if (cache.has(url)) return cache.get(url) as T;
+  const res = await fetchWithRetry(url);
+  const data: T = await res.json();
+  cache.set(url, data);
+  return data;
 }
 
 function padElection(cd: string): string {
@@ -17,6 +35,10 @@ function padCargo(cd: string): string {
   return cd.padStart(4, "0");
 }
 
+export async function fetchElectionConfig(): Promise<ElectionConfig> {
+  return cachedFetch(`${BASE_URL}/comum/config/ele-c.json`);
+}
+
 export async function fetchResults(
   electionCd: string,
   cargoCd: string,
@@ -25,8 +47,7 @@ export async function fetchResults(
   const paddedElection = padElection(electionCd);
   const paddedCargo = padCargo(cargoCd);
   const url = `${BASE_URL}/${CYCLE}/${electionCd}/dados/${uf}/${uf}-c${paddedCargo}-e${paddedElection}-u.json`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Dados indisponíveis (${res.status})`);
+  const res = await fetchWithRetry(url);
   return res.json();
 }
 
@@ -48,12 +69,10 @@ export interface ElectionOption {
 
 export async function fetchMunicipalities(
   electionCd: string
-): Promise<import("../types/tse").MunicipalityConfig> {
+): Promise<MunicipalityConfig> {
   const paddedElection = padElection(electionCd);
   const url = `${BASE_URL}/${CYCLE}/${electionCd}/config/mun-e${paddedElection}-cm.json`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Falha ao carregar municípios: ${res.status}`);
-  return res.json();
+  return cachedFetch(url);
 }
 
 export async function fetchMunicipalityResults(
@@ -66,9 +85,7 @@ export async function fetchMunicipalityResults(
   const paddedCargo = padCargo(cargoCd);
   const munCd = municipioCd.padStart(5, "0");
   const url = `${BASE_URL}/${CYCLE}/${electionCd}/dados/${uf}/${uf}${munCd}-c${paddedCargo}-e${paddedElection}-u.json`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Dados indisponíveis (${res.status})`);
-  return res.json();
+  return cachedFetch(url);
 }
 
 export async function fetchZoneResults(
@@ -83,9 +100,7 @@ export async function fetchZoneResults(
   const munCd = municipioCd.padStart(5, "0");
   const zone = zoneCd.padStart(4, "0");
   const url = `${BASE_URL}/${CYCLE}/${electionCd}/dados/${uf}/${uf}${munCd}-z${zone}-c${paddedCargo}-e${paddedElection}-u.json`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Dados indisponíveis (${res.status})`);
-  return res.json();
+  return cachedFetch(url);
 }
 
 export function parseElectionOptions(config: ElectionConfig): ElectionOption[] {

@@ -79,22 +79,31 @@ export function SectionPage({ electionCd, cargoCd, uf: ufProp }: SectionPageProp
     const rows: ZoneRow[] = [];
     const candidateOrder: string[] = [];
     const candidateInfo = new Map<string, CandidateDisplay>();
-    let done = 0;
+    let completed = 0;
 
-    const results = await Promise.allSettled(
-      zones.map(async (zone) => {
-        const data = await fetchZoneResults(
-          electionCd, cargoCd, effectiveUf, selectedMun, zone
-        );
-        done++;
-        setProgress({ done, total: zones.length });
-        return { zone, data };
-      })
-    );
+    const CONCURRENCY = 10;
+    const tasks = zones.map((zone) => async () => {
+      const data = await fetchZoneResults(
+        electionCd, cargoCd, effectiveUf, selectedMun, zone
+      );
+      completed++;
+      setProgress({ done: completed, total: zones.length });
+      return { zone, data };
+    });
+
+    let idx = 0;
+    const results: { zone: string; data: import("../types/tse").ElectionResult }[] = [];
+    async function worker() {
+      while (idx < tasks.length) {
+        const i = idx++;
+        try { results[i] = await tasks[i](); } catch { /* skip */ }
+      }
+    }
+    await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
 
     for (const r of results) {
-      if (r.status !== "fulfilled") continue;
-      const { zone, data } = r.value;
+      if (!r) continue;
+      const { zone, data } = r;
       const cargo = data.carg.find((c) => c.cd === cargoCd);
       if (!cargo) continue;
 

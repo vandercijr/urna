@@ -5,7 +5,7 @@ import type { Municipality } from "../types/tse";
 const LULA = "13";
 const FLAVIO = "22";
 const DEFAULT_THRESHOLD = 1000;
-const CONCURRENCY = 40;
+const CONCURRENCY = 10;
 
 interface MunRow {
   mun: string;
