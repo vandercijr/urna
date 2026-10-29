@@ -140,6 +140,7 @@ export interface Municipality {
   cdi: string;
   nm: string;
   c: string;
+  z: string[];
 }
 
 export interface CandidateDisplay {

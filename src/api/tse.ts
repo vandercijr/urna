@@ -46,6 +46,48 @@ export interface ElectionOption {
   scope: string;
 }
 
+export async function fetchMunicipalities(
+  electionCd: string
+): Promise<import("../types/tse").MunicipalityConfig> {
+  const paddedElection = padElection(electionCd);
+  const url = `${BASE_URL}/${CYCLE}/${electionCd}/config/mun-e${paddedElection}-cm.json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Falha ao carregar municípios: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchMunicipalityResults(
+  electionCd: string,
+  cargoCd: string,
+  uf: string,
+  municipioCd: string
+): Promise<ElectionResult> {
+  const paddedElection = padElection(electionCd);
+  const paddedCargo = padCargo(cargoCd);
+  const munCd = municipioCd.padStart(5, "0");
+  const url = `${BASE_URL}/${CYCLE}/${electionCd}/dados/${uf}/${uf}${munCd}-c${paddedCargo}-e${paddedElection}-u.json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Dados indisponíveis (${res.status})`);
+  return res.json();
+}
+
+export async function fetchZoneResults(
+  electionCd: string,
+  cargoCd: string,
+  uf: string,
+  municipioCd: string,
+  zoneCd: string
+): Promise<ElectionResult> {
+  const paddedElection = padElection(electionCd);
+  const paddedCargo = padCargo(cargoCd);
+  const munCd = municipioCd.padStart(5, "0");
+  const zone = zoneCd.padStart(4, "0");
+  const url = `${BASE_URL}/${CYCLE}/${electionCd}/dados/${uf}/${uf}${munCd}-z${zone}-c${paddedCargo}-e${paddedElection}-u.json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Dados indisponíveis (${res.status})`);
+  return res.json();
+}
+
 export function parseElectionOptions(config: ElectionConfig): ElectionOption[] {
   const options: ElectionOption[] = [];
   for (const pl of config.pl) {

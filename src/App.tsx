@@ -6,9 +6,14 @@ import { Header } from "./components/Header";
 import { Filters } from "./components/Filters";
 import { ResultsPanel } from "./components/ResultsPanel";
 import { PollingIndicator } from "./components/PollingIndicator";
+import { SectionPage } from "./components/SectionPage";
+import { LowVotesPage } from "./components/LowVotesPage";
 import "./App.css";
 
+type Page = "results" | "sections" | "lowvotes";
+
 function App() {
+  const [page, setPage] = useState<Page>("results");
   const [elections, setElections] = useState<ElectionOption[]>([]);
   const [selectedElection, setSelectedElection] = useState("");
   const [selectedCargo, setSelectedCargo] = useState("");
@@ -67,6 +72,27 @@ function App() {
       <Header lastUpdate={lastUpdate} onRefresh={refresh} loading={loading} />
 
       <main className="main-content">
+        <nav className="page-tabs">
+          <button
+            className={`tab-btn ${page === "results" ? "active" : ""}`}
+            onClick={() => setPage("results")}
+          >
+            Resultados
+          </button>
+          <button
+            className={`tab-btn ${page === "sections" ? "active" : ""}`}
+            onClick={() => setPage("sections")}
+          >
+            Votos por Zona
+          </button>
+          <button
+            className={`tab-btn ${page === "lowvotes" ? "active" : ""}`}
+            onClick={() => setPage("lowvotes")}
+          >
+            Menos de 1000
+          </button>
+        </nav>
+
         <Filters
           elections={elections}
           selectedElection={selectedElection}
@@ -78,19 +104,38 @@ function App() {
           availableCargos={availableCargos}
         />
 
-        <PollingIndicator
-          autoRefresh={autoRefresh}
-          countdown={countdown}
-          loading={loading}
-          onToggle={setAutoRefresh}
-        />
+        {page === "results" && (
+          <>
+            <PollingIndicator
+              autoRefresh={autoRefresh}
+              countdown={countdown}
+              loading={loading}
+              onToggle={setAutoRefresh}
+            />
 
-        <ResultsPanel
-          result={result!}
-          candidates={candidates}
-          loading={loading}
-          error={error}
-        />
+            <ResultsPanel
+              result={result!}
+              candidates={candidates}
+              loading={loading}
+              error={error}
+            />
+          </>
+        )}
+
+        {page === "sections" && (
+          <SectionPage
+            electionCd={selectedElection}
+            cargoCd={selectedCargo}
+            uf={uf}
+          />
+        )}
+
+        {page === "lowvotes" && (
+          <LowVotesPage
+            electionCd={selectedElection}
+            cargoCd={selectedCargo}
+          />
+        )}
       </main>
 
       <footer className="footer">
