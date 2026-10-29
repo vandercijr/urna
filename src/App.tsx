@@ -8,9 +8,10 @@ import { ResultsPanel } from "./components/ResultsPanel";
 import { PollingIndicator } from "./components/PollingIndicator";
 import { SectionPage } from "./components/SectionPage";
 import { LowVotesPage } from "./components/LowVotesPage";
+import { LowVotesZonePage } from "./components/LowVotesZonePage";
 import "./App.css";
 
-type Page = "results" | "sections" | "lowvotes";
+type Page = "results" | "sections" | "lowvotes" | "lowzones";
 
 function App() {
   const [page, setPage] = useState<Page>("results");
@@ -89,7 +90,13 @@ function App() {
             className={`tab-btn ${page === "lowvotes" ? "active" : ""}`}
             onClick={() => setPage("lowvotes")}
           >
-            Menos de 1000
+            Municipios
+          </button>
+          <button
+            className={`tab-btn ${page === "lowzones" ? "active" : ""}`}
+            onClick={() => setPage("lowzones")}
+          >
+            Zonas
           </button>
         </nav>
 
@@ -132,6 +139,13 @@ function App() {
 
         {page === "lowvotes" && (
           <LowVotesPage
+            electionCd={selectedElection}
+            cargoCd={selectedCargo}
+          />
+        )}
+
+        {page === "lowzones" && (
+          <LowVotesZonePage
             electionCd={selectedElection}
             cargoCd={selectedCargo}
           />

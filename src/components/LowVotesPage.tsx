@@ -4,7 +4,7 @@ import type { Municipality } from "../types/tse";
 
 const LULA = "13";
 const FLAVIO = "22";
-const THRESHOLD = 1000;
+const DEFAULT_THRESHOLD = 1000;
 const CONCURRENCY = 40;
 
 interface MunRow {
@@ -41,7 +41,9 @@ async function pooled<T>(
 }
 
 export function LowVotesPage({ electionCd, cargoCd }: { electionCd: string; cargoCd: string }) {
-  const [rows, setRows] = useState<MunRow[]>([]);
+  const [allRows, setAllRows] = useState<MunRow[]>([]);
+  const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
+  const [inputValue, setInputValue] = useState(String(DEFAULT_THRESHOLD));
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
@@ -56,7 +58,7 @@ export function LowVotesPage({ electionCd, cargoCd }: { electionCd: string; carg
     setLoading(true);
     setDone(false);
     setError(null);
-    setRows([]);
+    setAllRows([]);
 
     try {
       const config = await fetchMunicipalities(electionCd);
@@ -92,11 +94,7 @@ export function LowVotesPage({ electionCd, cargoCd }: { electionCd: string; carg
             }
           }
 
-          if (flavio < THRESHOLD || lula < THRESHOLD) {
-            const row: MunRow = { mun: mun.nm, uf, flavio, lula };
-            found.push(row);
-            setRows([...found]);
-          }
+          found.push({ mun: mun.nm, uf, flavio, lula });
           return null;
         } catch {
           return null;
@@ -107,10 +105,11 @@ export function LowVotesPage({ electionCd, cargoCd }: { electionCd: string; carg
         completed++;
         if (completed % 50 === 0 || completed === allMuns.length) {
           setProgress({ done: completed, total: allMuns.length });
+          setAllRows([...found]);
         }
       });
 
-      setRows([...found]);
+      setAllRows([...found]);
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar dados");
@@ -132,7 +131,17 @@ export function LowVotesPage({ electionCd, cargoCd }: { electionCd: string; carg
     abortRef.current = true;
   }
 
-  const sorted = [...rows].sort((a, b) => {
+  function handleThresholdChange(val: string) {
+    setInputValue(val);
+    const n = parseInt(val, 10);
+    if (!isNaN(n) && n >= 0) setThreshold(n);
+  }
+
+  const filtered = allRows.filter(
+    (r) => r.flavio < threshold || r.lula < threshold
+  );
+
+  const sorted = [...filtered].sort((a, b) => {
     const dir = sortAsc ? 1 : -1;
     if (sortKey === "mun") return dir * a.mun.localeCompare(b.mun);
     if (sortKey === "uf") return dir * a.uf.localeCompare(b.uf);
@@ -155,8 +164,18 @@ export function LowVotesPage({ electionCd, cargoCd }: { electionCd: string; carg
         <div className="low-votes-start">
           <p>
             Busca municipios onde <strong>Flavio Bolsonaro (22)</strong> ou{" "}
-            <strong>Lula (13)</strong> tiveram menos de {THRESHOLD.toLocaleString("pt-BR")} votos.
+            <strong>Lula (13)</strong> tiveram poucos votos.
           </p>
+          <div className="threshold-input">
+            <label>Menos de</label>
+            <input
+              type="number"
+              min={0}
+              value={inputValue}
+              onChange={(e) => handleThresholdChange(e.target.value)}
+            />
+            <span>votos</span>
+          </div>
           <p className="low-votes-warn">
             Serao consultados ~5.500 municipios. Isso pode levar alguns minutos.
           </p>
@@ -176,7 +195,7 @@ export function LowVotesPage({ electionCd, cargoCd }: { electionCd: string; carg
             <div className="progress-fill" style={{ width: `${pct}%` }} />
           </div>
           <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-muted)" }}>
-            {rows.length} municipios encontrados ate agora
+            {allRows.length.toLocaleString("pt-BR")} municipios carregados
           </p>
           <button
             className="polling-toggle on"
@@ -194,25 +213,34 @@ export function LowVotesPage({ electionCd, cargoCd }: { electionCd: string; carg
         </div>
       )}
 
-      {(done || rows.length > 0) && (
+      {(done || allRows.length > 0) && (
         <>
           <div className="section-header">
             <h2 className="results-title">
-              Municipios com menos de {THRESHOLD.toLocaleString("pt-BR")} votos
+              Municipios com poucos votos
             </h2>
             <span className="section-total">
-              {rows.length} municipios encontrados
+              {filtered.length.toLocaleString("pt-BR")} de{" "}
+              {allRows.length.toLocaleString("pt-BR")} municipios
             </span>
           </div>
-          {done && (
-            <button
-              className="polling-toggle"
-              style={{ marginBottom: 16 }}
-              onClick={load}
-            >
-              Buscar novamente
-            </button>
-          )}
+
+          <div className="threshold-bar">
+            <label>Menos de</label>
+            <input
+              type="number"
+              min={0}
+              value={inputValue}
+              onChange={(e) => handleThresholdChange(e.target.value)}
+            />
+            <span>votos</span>
+            {done && (
+              <button className="polling-toggle" onClick={load}>
+                Buscar novamente
+              </button>
+            )}
+          </div>
+
           <div className="section-table-wrapper">
             <table className="section-table">
               <thead>
@@ -244,14 +272,14 @@ export function LowVotesPage({ electionCd, cargoCd }: { electionCd: string; carg
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((r) => (
-                  <tr key={`${r.uf}-${r.mun}`}>
+                {sorted.map((r, i) => (
+                  <tr key={`${r.uf}-${r.mun}-${i}`}>
                     <td>{r.mun}</td>
                     <td>{r.uf}</td>
-                    <td className={`td-votes ${r.flavio < THRESHOLD ? "td-low" : ""}`}>
+                    <td className={`td-votes ${r.flavio < threshold ? "td-low" : ""}`}>
                       {r.flavio.toLocaleString("pt-BR")}
                     </td>
-                    <td className={`td-votes ${r.lula < THRESHOLD ? "td-low" : ""}`}>
+                    <td className={`td-votes ${r.lula < threshold ? "td-low" : ""}`}>
                       {r.lula.toLocaleString("pt-BR")}
                     </td>
                   </tr>
